@@ -6,19 +6,23 @@ Version :   1.0
 '''
 
 import math
-num = int(input('input a number: '))
-numSqrt = int(math.sqrt(num))
-isPrime = True
 
-if num < 2:
-    print('not prime')
-else:
-    for i in range(2,numSqrt+1):
-        if num % i == 0:
-            isPrime = False
-            break
+def primeJuedge(num):
+    isPrime = True
+    numSqrt = int(math.sqrt(num))
+    if num < 2:
+        print('not prime')
+    else:
+        for i in range(2,numSqrt+1):
+            if num % i == 0:
+                isPrime = False
+                break
+    if isPrime:
+        return True
+    else:
+        return False
 
-if isPrime:
-    print('prime')
-else:
-    print('not prime')
+
+for num in range(1,101):
+    if primeJuedge(num):
+        print(num)

@@ -2,4 +2,320 @@
 ***
 
 #### @property装饰器
-前面讨论过python中属性和方法访问权限的问题，虽然不建议将属性设置为私有的，但是如果直接将属性暴露给外界也是有问题的，比如我们无法检查赋给属性的值是否有效。我们之前的建议是将属性命名以单下划线开头，通过这种方式来暗示是受保护的，不建议外界直接访问。那么如果想访问属性可以通过属性的getter（访问器）和setter（修改器）方法进行对应的操作。如果要做到这点，就可以考虑使用@property包装器来包装getter和setter方法，使得对属性的访问既安全又方便。
+前面讨论过python中属性和方法访问权限的问题，虽然不建议将属性设置为私有的，但是  
+如果直接将属性暴露给外界也是有问题的，比如我们无法检查赋给属性的值是否有效。我们  
+之前的建议是将属性命名以单下划线开头，通过这种方式来暗示是受保护的，不建议外界直  
+接访问。那么如果想访问属性可以通过属性的getter（访问器）和setter（修改器）方法  
+进行对应的操作。如果要做到这点，就可以考虑使用@property包装器来包装getter  
+和setter方法，使得对属性的访问既安全又方便。
+```py
+class Person(object):
+
+    def __init__(self, name, age):
+        self._name = name
+        self._age = age
+    
+    # 访问器 getter方法
+    @property
+    def age(self):
+        return self._age
+    
+    # 访问器 getter方法
+    def name(self):
+        return self._name
+    
+    # 修改器 setter方法
+    @age.setter
+    def age(self, age):
+        self._age = age
+
+    def play(self):
+        if self._age <= 16:
+            print(f'{self._name}正在玩飞行棋')
+        else:
+            print(f'{self._name}正在玩斗地主')
+
+def main():
+    person = Person('ZJY',3)
+    person.play()
+    person.age = 22
+    person.play()
+
+if __name__ == '__main__':
+    main()
+```
+***
+#### __slot__魔法
+Python是一门动态语言，动态语言允许我们在程序运行时给对象绑定新的属性或方法，  
+当然也可以对已经绑定的属性和方法进行解绑。但如果我们需要限定自定义类型的对象  
+只能绑定某些属性，可以通过在类中定义__slots__变量来进行限定。  
+需要注意的是__slots__的限定只对当前类的对象生效，对子类不起任何作用。
+```py
+class Person(object):
+
+    #限定Person对象只能绑定_name,_age和_gender属性
+    __slots__ = ('_name', '_age', '_gender')
+
+    def __init__(self, name, age):
+        self._name = name
+        self._age = age
+    
+    @property
+    def name(self):
+        return self._name
+    
+    @property
+    def age(self):
+        return self._age
+    
+    @age.setter
+    def age(self, age):
+        self._age = age
+    
+    def play(self):
+        if self._age <= 16:
+            print(f'{self._name}正在玩飞行棋')
+        else:
+            print(f'{self._name}正在玩斗地主')
+
+def main():
+    person = Person('zjy', 3)
+    person.play()
+    person._gender = 'male'
+
+if __name__ == '__main__':
+    main()
+```
+***
+#### 静态方法和类方法
+之前，我们在类中定义的方法都是对象方法，也就是说这些方法都是发给对象的消息。  
+实际上，我们写在类中的方法并不需要都是对象方法，例如我们定义一个类：三角形，  
+通过传入三边长来构造三角形，并提供计算周长和面积的方法，但是传入的三边长未必  
+能构造三角形，因此我们需要先写一个方法来验证，这个方法就不是对象方法，因为  
+调用这个方法时三角形对象尚未创建出来，所以这个方法是属于三角形类但不属于  
+三角形对象的。我们可以使用静态方法来解决这个问题。
+```py
+from math import sqrt
+
+class Triangle(object):
+
+    def __init__(self, a, b, c):
+        self._a = a
+        self._b = b
+        self._c = c
+
+    @staticmethod
+    def isValid(a, b, c):
+        return a + b > c and b + c > a and a + c > b
+    
+    def perimeter(self):
+        return self._a + self._b + self._c
+    
+    def area(self):
+        half = self.perimeter() / 2
+        return sqrt(half * (half - self._a) * (half - self._b) * (half - self._c))
+
+def main():
+    a, b, c = 3, 4, 5
+    # 静态方法和类方法都是通过给类发消息来调用
+    if Triangle.isValid(a,b,c):
+        t = Triangle(a,b,c)
+        print(t.perimeter())
+        #也可以通过给类发消息来调用对象方法但是要传入接受消息的对象作为参数
+        print(Triangle.perimeter(t))
+
+        print(t.area())
+        print(Triangle.area(t))
+
+    else:
+        print('can not form triangle')
+
+if __name__ == '__main__':
+    main()
+```
+和静态方法比较类似，python还可以在类中定义类方法，类方法的第一次参数约定名为`cls`，  
+它代表的是当前类相关的信息的对象（类本身也是一个对象，有的地方也称之为类的  
+元数据对象）， 通过这个参数我们可以获取和类相关的信息并且可以创建出类的对象。
+```py
+from time import time, localtime, sleep
+
+class Clock(object):
+    '''数字时钟'''
+    def __init__(self, hour = 0, minute = 0, second = 0):
+        self._hour = hour
+        self._minute = minute
+        self._second = second
+    
+    @classmethod
+    def now(cls):
+        ctime = localtime(time())
+        return cls(ctime.tm_hour, ctime.tm_min, ctime.tm_sec)
+    
+    def run(self):
+        '''走字'''
+        self._second += 1
+        if self._second == 60:
+            self._second = 0
+            self._minute += 1
+            if self._minute == 60:
+                self._minute = 0
+                self._hour += 1
+                if self._hour == 24:
+                    self._hour = 0
+    
+    def show(self):
+        '''显示时间'''
+        return f'{self._hour}:{self._minute}:{self._second}'
+
+def main():
+    clock = Clock.now()
+    while True:
+        print(clock.show())
+        sleep(0.5)
+        print(Clock.show(clock))
+        sleep(0.5)
+        clock.run()
+
+if __name__ ==  '__main__':
+    main()
+```
+***
+#### 类之间的关系
+简单来说，类和类之间的关系有三种：
+* is-a关系也叫继承或泛化，比如学生和人的关系，手机和电子产品的关系
+* has-a关系通常称为关联，比如部门和员工，汽车和引擎。关联关系如果是整体和部分的  
+关系，称之为聚合关系；如果整体进一步负责了部分的生命周期，那么这种就是最强的关联  
+关系，我们称之为合成关系。
+* use-a关系通常称为依赖关系，比如司机有驾驶的行为，其中使用到了汽车，那么司机  
+和汽车就是依赖关系。
+
+我们可以使用一种叫`UML`统一建模语言的东西来进行面向对象建模，其中一项重要的工作  
+就是把类和类之间的关系用标准化的图形符号描述出来。
+
+利用类之间的关系，我们可以在已有类的基础上来完成某些操作，也可以在已有类的基础上  
+创建新的类，这些都是实现代码复用的重要手段。复用现有的代码不仅可以减少开发的工作量  
+也有利于代码的管理和维护。
+***
+#### 继承和多态
+刚刚我们提到，可以在已有类的基础上创建新类，这其中的一种做法就是让一个类从另一个  
+类那里将属性和方法直接继承下来，从而减少重复代码的编写。提供继承信息的我们称之为  
+父类，也叫超类或基类；得到继承信息的我们称之为子类，也叫派生类或衍生类。子类除了  
+继承父类提供的属性和方法，还可以定义自己特有的属性和方法，所以子类比父类拥有更多  
+的能力，在实际开发中，我们经常会用子类对象去替换掉一个父类对象，这是面向对象编程  
+中一个常见的行为，对应的原则称之为[里氏替换原则](https://zh.wikipedia.org/wiki/%E9%87%8C%E6%B0%8F%E6%9B%BF%E6%8D%A2%E5%8E%9F%E5%88%99)。
+
+```py
+class Person(object):
+    '''人'''
+    def __init__(self, name, age):
+        self._name = name
+        self._age = age
+    
+    @property
+    def name(self):
+        return self._name
+    
+    @property
+    def age(self):
+        return self._age
+    
+    @age.setter
+    def age(self, age):
+        self._age = age
+    
+    def watchTv(self):
+        if self._age >= 18:
+            print(f'{self._name}正在看动作片')
+        else:
+            print(f'{self._name}正在看龙珠')
+
+class Student(Person):
+    '''学生'''
+    def __init__(self, name, age, grade):
+        super().__init__(name, age)
+        self._grade = grade
+    
+    @property
+    def grade(self):
+        return self._grade
+    
+    @grade.setter
+    def grade(self, grade):
+        self._grade = grade
+    
+    def study(self, course):
+        print(f'{self._name}正在学习{course}')
+
+class Teacher(Person):
+    '''老师'''
+    def __init__(self, name, age, title):
+        super().__init__(name, age)
+        self._title = title
+    
+    @property
+    def title(self):
+        return self._title
+    
+    @title.setter
+    def title(self, title):
+        self._title = title
+    
+    def teach(self, course):
+        print(f'{self._name}正在讲{course}')
+    
+def main():
+    stu = Student('Aki', 3, '幼稚园')
+    stu.study('识字')
+    stu.watchTv()
+
+    t = Teacher('zjy',30,'砖家')
+    t.teach('识字')
+    t.watchTv()
+
+if __name__ == '__main__':
+    main()
+```
+子类在继承了父类的方法后，可以对父类已有的方法给出新的实现版本，这个动作称之为  
+`重写` `(override)`。通过方法重写我们可以让父类的同一个行为在子类中拥有不同的  
+实现版本，当我们在调用这个经过子类重写的方法时，不同的子类对象会表现出不同的行为。  
+这个就是`多态` `(poly-morphism)`。
+
+```py
+from abc import ABCMeta, abstractmethod
+
+class Pet(object, metaclass = ABCMeta):
+    '''宠物'''
+    def __init__(self, nickname):
+        self._nickname = nickname
+    
+    @abstractmethod
+    def makeVoice(self):
+        '''发出声音'''
+        pass
+
+class Dog(Pet):
+    '''狗狗'''
+    def makeVoice(self):
+        print(f'{self._nickname}:汪汪汪')
+
+class Cat(Pet):
+    '''猫咪'''
+    def makeVoice(self):
+        print(f'{self._nickname}:喵喵喵')
+
+def main():
+    pets = [Dog('小白'), Cat('小黑猫'), Dog('狗小黑')]
+    for pet in pets:
+        pet.makeVoice()
+
+if __name__ == '__main__':
+    main()
+```
+
+在上面的代码中，将`Pet`类处理成了一个抽象类，所谓抽象类就是不能够创建对象的类，这  
+种类的存在就是专门为了让其他类去继承它们。Python从语法层面并没有像Java或C#那样  
+提供对抽象类的支持，但是我们可以通过`abc`模块的`ABCMeta`元类和`abstractmethod`  
+包装器来达到抽象类的效果，如果一个类中存在抽象方法那么这个类就不能够实例化。  
+上面代码中，`Dog`和`Cat`两个子类分别对`Pet`类中的`makeVoice`抽象方法进行了  
+重写并给出了不同的实现版本，当我们在`main`函数中调用该方法时，这个方法就表现出  
+多态行为。  
